@@ -2747,19 +2747,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _hideTimer?.cancel();
     final hideDelay =
         delay ??
-        (PlatformDetection.useMobileUi
+        (PlatformDetection.isTV
+            ? const Duration(seconds: 10)
+            : PlatformDetection.useMobileUi
             ? const Duration(seconds: 8)
             : const Duration(seconds: 5));
     _hideTimer = Timer(hideDelay, () {
       if (!mounted) return;
       // Closing a dialog gives focus back to the button that opened it, so the
-      // controls stay up while one is open.
-      if (_routeCovered) {
+      // controls stay up while one is open. On TV a scrub in progress keeps
+      // them up too, and the timer tries again once it would be done.
+      if (_routeCovered || (PlatformDetection.isTV && _isSeeking)) {
         _scheduleHide(delay: hideDelay);
         return;
       }
       final playing = _state.isPlaying;
-      if (!playing && !_hasPausedDescriptionCard) return;
+      // On TV the bar hides whatever the player reports. A buffering blip or a
+      // live stream that is late to report playing at this moment would
+      // otherwise leave it on screen until the next key press.
+      if (!playing && !_hasPausedDescriptionCard && !PlatformDetection.isTV) {
+        return;
+      }
       setState(() {
         _controlsVisible = false;
         if (playing &&
